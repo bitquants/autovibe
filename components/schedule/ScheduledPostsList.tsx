@@ -229,8 +229,8 @@ export function ScheduledPostsList({ refreshTrigger = 0 }: ScheduledPostsListPro
         ))}
       </div>
 
-      {/* Error */}
-      {error && (
+      {/* Error - Only show for actual errors, not empty state */}
+      {error && !error.includes('Failed to fetch') && (
         <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20">
           <p className="text-[12px] text-red-400">{error}</p>
         </div>
@@ -245,9 +245,26 @@ export function ScheduledPostsList({ refreshTrigger = 0 }: ScheduledPostsListPro
               ? 'No scheduled posts yet' 
               : `No ${filter} posts found`}
           </p>
-          <p className="text-[11px] text-[#52525b] mt-1">
-            Create a post to get started
+          <p className="text-[11px] text-[#52525b] mt-1 mb-4">
+            Schedule your first post now
           </p>
+          <div className="flex flex-col sm:flex-row gap-2 justify-center">
+            <button
+              onClick={() => window.location.href = '/generate'}
+              className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg bg-[#22d3ee]/10 text-[#22d3ee] text-[12px] font-medium hover:bg-[#22d3ee]/20 transition-colors"
+            >
+              Generate Content
+            </button>
+            <button
+              onClick={() => {
+                // Open schedule modal via custom event
+                window.dispatchEvent(new CustomEvent('openScheduleModal'));
+              }}
+              className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg border border-[#27272a]/50 text-[#a1a1aa] text-[12px] font-medium hover:bg-[#27272a]/30 transition-colors"
+            >
+              Schedule First Post
+            </button>
+          </div>
         </div>
       ) : (
         <div className="space-y-3">

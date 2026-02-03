@@ -16,6 +16,14 @@ export function ScheduleSection() {
   // Fetch monthly count on mount
   useEffect(() => {
     fetchMonthlyCount();
+    
+    // Listen for custom event to open modal from child components
+    const handleOpenModal = () => setIsModalOpen(true);
+    window.addEventListener('openScheduleModal', handleOpenModal);
+    
+    return () => {
+      window.removeEventListener('openScheduleModal', handleOpenModal);
+    };
   }, []);
 
   const fetchMonthlyCount = async () => {
