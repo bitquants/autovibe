@@ -109,7 +109,20 @@ export function AccountConnections({ accounts }: AccountConnectionsProps) {
         code_challenge_method: 'S256',
       });
       
-      const authUrl = `https://twitter.com/i/oauth2/authorize?${params.toString()}`;
+      // Build the URL manually to ensure proper encoding
+      const authUrl = 'https://twitter.com/i/oauth2/authorize?' + 
+        'response_type=code&' +
+        'client_id=' + encodeURIComponent(TWITTER_CLIENT_ID) + '&' +
+        'redirect_uri=' + encodeURIComponent(`${APP_URL}/api/auth/twitter/callback`) + '&' +
+        'scope=' + encodeURIComponent('tweet.read tweet.write users.read offline.access') + '&' +
+        'state=' + encodeURIComponent(state) + '&' +
+        'code_challenge=' + encodeURIComponent(codeChallenge) + '&' +
+        'code_challenge_method=S256';
+      
+      console.log('Twitter OAuth URL:', authUrl);
+      console.log('Client ID:', TWITTER_CLIENT_ID);
+      console.log('Redirect URI:', `${APP_URL}/api/auth/twitter/callback`);
+      
       window.location.href = authUrl;
       return;
     }
