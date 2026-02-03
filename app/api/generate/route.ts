@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { generateContent, createPlatformPrompt, generateMockContent } from '@/lib/moonshot';
 import { PLATFORM_PROMPTS, type Platform, type GenerateResponse } from '@/types';
+import { CREDIT_COSTS } from '@/lib/stripe';
 
 export async function POST(request: NextRequest) {
   try {
@@ -19,6 +20,51 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
+      );
+    }
+
+    // Ensure user has a profile before checking credits
+    const { data: existingProfile } = await supabase
+      .from('profiles')
+      .select('credits')
+      .eq('id', user.id)
+      .single();
+
+    if (!existingProfile) {
+      // Create profile with default credits
+      const { error: createError } = await supabase
+        .from('profiles')
+        .insert({
+          id: user.id,
+          email: user.email,
+          credits: 500,
+          subscription_tier: 'free',
+          subscription_status: 'inactive',
+        });
+
+      if (createError) {
+        console.error('Failed to create profile:', createError);
+        return NextResponse.json(
+          { error: 'Failed to initialize user profile' },
+          { status: 500 }
+        );
+      }
+    }
+
+    // Check and deduct credits
+    const { data: hasCredits, error: creditsError } = await supabase.rpc(
+      'deduct_credits',
+      {
+        p_user_id: user.id,
+        p_amount: CREDIT_COSTS.perGeneration,
+        p_description: `Generated content for: ${idea.substring(0, 50)}...`,
+      }
+    );
+
+    if (creditsError || !hasCredits) {
+      return NextResponse.json(
+        { error: 'Insufficient credits. Please upgrade your plan.' },
+        { status: 403 }
       );
     }
 

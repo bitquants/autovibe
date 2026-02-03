@@ -7,6 +7,35 @@ export interface Profile {
   avatar_url: string | null;
   created_at: string;
   updated_at: string;
+  credits: number;
+  subscription_tier: 'free' | 'pro' | 'enterprise';
+  subscription_status: 'active' | 'inactive' | 'cancelled' | 'past_due';
+  stripe_customer_id: string | null;
+  stripe_subscription_id: string | null;
+  subscription_period_end: string | null;
+  monthly_credits_used: number;
+  credits_reset_at: string;
+}
+
+export interface CreditTransaction {
+  id: string;
+  user_id: string;
+  amount: number;
+  type: 'purchase' | 'usage' | 'bonus' | 'refund' | 'subscription_grant';
+  description: string;
+  metadata: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface CheckoutSession {
+  id: string;
+  user_id: string;
+  stripe_session_id: string;
+  stripe_price_id: string;
+  tier: 'pro' | 'enterprise';
+  status: 'pending' | 'completed' | 'cancelled' | 'expired';
+  created_at: string;
+  completed_at: string | null;
 }
 
 export interface SocialAccount {
@@ -41,6 +70,22 @@ export interface GeneratedPost {
   image_prompt: string | null;
   mediaSuggestion?: string;
   status: 'draft' | 'edited' | 'posted' | 'scheduled';
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ScheduledPost {
+  id: string;
+  user_id: string;
+  platform: Platform;
+  content: string;
+  hashtags: string[];
+  media_url: string | null;
+  scheduled_for: string;
+  status: 'pending' | 'processing' | 'published' | 'failed' | 'cancelled';
+  error_message: string | null;
+  published_at: string | null;
+  platform_post_id: string | null;
   created_at: string;
   updated_at: string;
 }

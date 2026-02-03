@@ -2,12 +2,19 @@
 
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { ArrowRight, Clock, Sparkles, FileText, Hash, ImageIcon } from 'lucide-react';
-import type { ContentIdea } from '@/types';
+import { ArrowRight, Clock, Sparkles, FileText, Hash } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
+interface RecentIdea {
+  id: string;
+  idea: string;
+  niche: string;
+  created_at: string;
+  generated_posts?: { count: number }[];
+}
+
 interface RecentIdeasProps {
-  ideas: ContentIdea[];
+  ideas: RecentIdea[];
 }
 
 export function RecentIdeas({ ideas }: RecentIdeasProps) {
@@ -97,7 +104,7 @@ export function RecentIdeas({ ideas }: RecentIdeasProps) {
               <div className="flex items-center gap-3 mt-2 pt-2 border-t border-[#27272a]/30">
                 <span className="text-[11px] text-[#71717a] flex items-center gap-1">
                   <FileText className="w-3 h-3" />
-                  4 platforms
+                  {idea.generated_posts?.[0]?.count || 4} posts
                 </span>
                 <span className="text-[11px] text-[#71717a] flex items-center gap-1">
                   <Hash className="w-3 h-3" />

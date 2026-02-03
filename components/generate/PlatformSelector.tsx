@@ -9,11 +9,9 @@ interface PlatformSelectorProps {
   onToggle: (platform: Platform) => void;
 }
 
-const PLATFORMS: { id: Platform; name: string; icon: typeof Facebook; color: string }[] = [
-  { id: 'twitter', name: 'X (Twitter)', icon: Twitter, color: '#fafafa' },
-  { id: 'instagram', name: 'Instagram', icon: Instagram, color: '#e4405f' },
-  { id: 'facebook', name: 'Facebook', icon: Facebook, color: '#1877f2' },
-  { id: 'youtube', name: 'YouTube', icon: Youtube, color: '#ff0000' },
+// Only Twitter/X is available - others are hidden for now
+const PLATFORMS: { id: Platform; name: string; icon: typeof Facebook; color: string; enabled: boolean }[] = [
+  { id: 'twitter', name: 'X (Twitter)', icon: Twitter, color: '#fafafa', enabled: true },
 ];
 
 export function PlatformSelector({
@@ -30,13 +28,16 @@ export function PlatformSelector({
           <motion.button
             key={platform.id}
             type="button"
-            onClick={() => onToggle(platform.id)}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
+            onClick={() => platform.enabled && onToggle(platform.id)}
+            whileHover={platform.enabled ? { scale: 1.02 } : {}}
+            whileTap={platform.enabled ? { scale: 0.98 } : {}}
+            disabled={!platform.enabled}
             className={`relative p-3 rounded-md border text-left transition-all ${
               isSelected
                 ? 'bg-[#22d3ee]/10 border-[#22d3ee]/50'
-                : 'bg-[#18181b] border-[#27272a] hover:border-[#3f3f46]'
+                : platform.enabled
+                ? 'bg-[#18181b] border-[#27272a] hover:border-[#3f3f46]'
+                : 'bg-[#18181b]/50 border-[#27272a]/50 opacity-50 cursor-not-allowed'
             }`}
           >
             <div className="flex items-start justify-between">

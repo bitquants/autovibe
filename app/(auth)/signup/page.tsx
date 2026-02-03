@@ -23,7 +23,7 @@ export default function SignupPage() {
     setIsLoading(true);
     setError('');
 
-    const { error } = await supabase.auth.signUp({
+    const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -33,10 +33,29 @@ export default function SignupPage() {
       },
     });
 
-    if (error) {
-      setError(error.message);
+    if (authError) {
+      setError(authError.message);
       setIsLoading(false);
       return;
+    }
+
+    // Create user profile immediately after signup
+    if (authData.user) {
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .insert({
+          id: authData.user.id,
+          email: authData.user.email,
+          full_name: fullName,
+          credits: 500,
+          subscription_tier: 'free',
+          subscription_status: 'inactive',
+        });
+
+      if (profileError) {
+        console.error('Profile creation error:', profileError);
+        // Don't block signup if profile creation fails, it will be created on first login
+      }
     }
 
     setSuccess(true);

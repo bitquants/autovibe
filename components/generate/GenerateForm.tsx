@@ -2,9 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, Loader2, Wand2, Clock, CheckCircle, Copy, Check, ExternalLink, Calendar, X, FileText, ImageIcon, Hash } from 'lucide-react';
+import { Sparkles, Loader2, Wand2, Clock, CheckCircle, Copy, Check, ExternalLink, Calendar, X, FileText, ImageIcon, Hash, Coins, AlertTriangle } from 'lucide-react';
 import type { Platform, GenerateResponse } from '@/types';
 import { GeneratedPosts } from './GeneratedPosts';
+import { CREDIT_COSTS } from '@/lib/stripe';
+import { CreditInsufficientModal } from '@/components/billing/CreditInsufficientModal';
 
 const NICHE_OPTIONS = [
   'Business',
@@ -63,9 +65,20 @@ export function GenerateForm() {
   const [scheduledPosts, setScheduledPosts] = useState<ScheduledPost[]>([]);
   const [copiedPlatform, setCopiedPlatform] = useState<Platform | null>(null);
   const [mounted, setMounted] = useState(false);
+  const [showCreditModal, setShowCreditModal] = useState(false);
+  const [currentCredits, setCurrentCredits] = useState(0);
 
   useEffect(() => {
     setMounted(true);
+    // Fetch current credits
+    fetch('/api/credits/check')
+      .then(res => res.json())
+      .then(data => {
+        if (data.credits !== undefined) {
+          setCurrentCredits(data.credits);
+        }
+      })
+      .catch(console.error);
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -87,6 +100,10 @@ export function GenerateForm() {
 
       if (!response.ok) {
         const data = await response.json();
+        if (response.status === 403) {
+          setShowCreditModal(true);
+          throw new Error(data.error || 'Insufficient credits. Please upgrade your plan.');
+        }
         throw new Error(data.error || 'Failed to generate content');
       }
 
@@ -176,9 +193,21 @@ export function GenerateForm() {
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
-            className="p-3 rounded-md bg-red-500/10 border border-red-500/20 text-red-400 text-[13px]"
+            className={`p-3 rounded-md border text-[13px] ${
+              error.includes('credits')
+                ? 'bg-yellow-500/10 border-yellow-500/20 text-yellow-400'
+                : 'bg-red-500/10 border-red-500/20 text-red-400'
+            }`}
           >
             {error}
+            {error.includes('credits') && (
+              <a
+                href="/settings"
+                className="block mt-2 text-[12px] underline hover:text-yellow-300"
+              >
+                Upgrade your plan →
+              </a>
+            )}
           </motion.div>
         )}
 
@@ -245,15 +274,20 @@ export function GenerateForm() {
           )}
         </AnimatePresence>
 
-        {/* Info Box */}
+        {/* Credit Cost Info Box */}
         <div className="p-4 rounded-lg bg-cyan-400/5 border border-cyan-400/20">
           <div className="flex items-start gap-3">
             <Sparkles className="w-4 h-4 text-cyan-400 mt-0.5 flex-shrink-0" />
-            <div>
+            <div className="flex-1">
               <p className="text-[13px] text-[#a1a1aa]">
                 We'll generate content optimized for <span className="text-cyan-400 font-medium">all platforms</span> (Twitter, Instagram, Facebook, YouTube). 
                 After generation, you can copy and post to each platform.
               </p>
+            </div>
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-[#27272a] border border-[#3f3f46]">
+              <Coins className="w-4 h-4 text-cyan-400" />
+              <span className="text-[13px] font-medium text-[#fafafa]">{CREDIT_COSTS.perGeneration}</span>
+              <span className="text-[11px] text-[#71717a]">credit</span>
             </div>
           </div>
         </div>
@@ -605,6 +639,13 @@ export function GenerateForm() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Credit Insufficient Modal */}
+      <CreditInsufficientModal
+        isOpen={showCreditModal}
+        onClose={() => setShowCreditModal(false)}
+        currentCredits={currentCredits}
+      />
     </div>
   );
 }

@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
+import { CreditsWidget } from '@/components/billing/CreditsWidget';
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -21,7 +22,17 @@ const navItems = [
   { href: '/settings', label: 'Settings', icon: Settings },
 ];
 
-export function Sidebar() {
+interface SidebarProfile {
+  credits: number;
+  subscription_tier: 'free' | 'pro' | 'enterprise';
+  subscription_status: 'active' | 'inactive' | 'cancelled' | 'past_due';
+}
+
+interface SidebarProps {
+  profile?: SidebarProfile;
+}
+
+export function Sidebar({ profile }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
@@ -77,6 +88,13 @@ export function Sidebar() {
           );
         })}
       </nav>
+
+      {/* Credits Widget - only show on larger screens */}
+      {profile && (
+        <div className="hidden lg:block p-3 border-t border-[#27272a]/50">
+          <CreditsWidget profile={profile} />
+        </div>
+      )}
 
       {/* Logout */}
       <div className="p-2 border-t border-[#27272a]/50">

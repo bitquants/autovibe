@@ -1,12 +1,13 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Lightbulb, FileText, Link2 } from 'lucide-react';
+import { Lightbulb, FileText, Link2, Calendar } from 'lucide-react';
 
 interface DashboardStatsProps {
   ideasCount: number;
   postsCount: number;
   accountsCount: number;
+  scheduledCount?: number;
 }
 
 const container = {
@@ -24,11 +25,12 @@ const item = {
   show: { opacity: 1, y: 0 },
 };
 
-export function DashboardStats({ ideasCount, postsCount, accountsCount }: DashboardStatsProps) {
+export function DashboardStats({ ideasCount, postsCount, accountsCount, scheduledCount = 0 }: DashboardStatsProps) {
   const stats = [
     { label: 'Content Ideas', value: ideasCount, icon: Lightbulb, color: 'text-[#fbbf24]', bg: 'bg-[#fbbf24]/10' },
     { label: 'Generated Posts', value: postsCount, icon: FileText, color: 'text-[#4ade80]', bg: 'bg-[#4ade80]/10' },
     { label: 'Connected Accounts', value: accountsCount, icon: Link2, color: 'text-[#22d3ee]', bg: 'bg-[#22d3ee]/10' },
+    { label: 'Scheduled', value: scheduledCount, icon: Calendar, color: 'text-[#a78bfa]', bg: 'bg-[#a78bfa]/10' },
   ];
 
   return (
@@ -36,7 +38,7 @@ export function DashboardStats({ ideasCount, postsCount, accountsCount }: Dashbo
       variants={container}
       initial="hidden"
       animate="show"
-      className="grid grid-cols-1 sm:grid-cols-3 gap-4"
+      className="grid grid-cols-2 sm:grid-cols-4 gap-4"
     >
       {stats.map((stat) => (
         <motion.div

@@ -18,7 +18,8 @@ interface PlatformConfig {
   description: string;
 }
 
-const PLATFORMS: PlatformConfig[] = [
+// Only Twitter/X is enabled for now - others coming soon
+const PLATFORMS: (PlatformConfig & { enabled: boolean })[] = [
   {
     id: 'twitter',
     name: 'X (Twitter)',
@@ -26,6 +27,7 @@ const PLATFORMS: PlatformConfig[] = [
     color: '#fafafa',
     bgColor: 'bg-[#fafafa]/10',
     description: 'Share short-form updates and engage with your audience',
+    enabled: true,
   },
   {
     id: 'instagram',
@@ -33,7 +35,8 @@ const PLATFORMS: PlatformConfig[] = [
     icon: Instagram,
     color: '#e4405f',
     bgColor: 'bg-[#e4405f]/10',
-    description: 'Visual storytelling and community building',
+    description: 'Visual storytelling and community building (Coming Soon)',
+    enabled: false,
   },
   {
     id: 'facebook',
@@ -41,7 +44,8 @@ const PLATFORMS: PlatformConfig[] = [
     icon: Facebook,
     color: '#1877f2',
     bgColor: 'bg-[#1877f2]/10',
-    description: 'Connect with communities and share longer content',
+    description: 'Connect with communities and share longer content (Coming Soon)',
+    enabled: false,
   },
   {
     id: 'youtube',
@@ -49,44 +53,117 @@ const PLATFORMS: PlatformConfig[] = [
     icon: Youtube,
     color: '#ff0000',
     bgColor: 'bg-[#ff0000]/10',
-    description: 'Video content and detailed descriptions',
+    description: 'Video content and detailed descriptions (Coming Soon)',
+    enabled: false,
   },
 ];
+
+// Twitter OAuth 2.0 configuration
+// NOTE: This must match the Client ID in your Twitter Developer Portal exactly
+const TWITTER_CLIENT_ID = 'QjJXdzBab2stSDdFZXo1a24tNkg6MTpjaQ';
+const APP_URL = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
 
 export function AccountConnections({ accounts }: AccountConnectionsProps) {
   const [connecting, setConnecting] = useState<Platform | null>(null);
 
   const connectedPlatforms = new Set(accounts.map((a) => a.platform));
 
+  const generateCodeChallenge = async (codeVerifier: string) => {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(codeVerifier);
+    const digest = await crypto.subtle.digest('SHA-256', data);
+    const base64Digest = btoa(String.fromCharCode(...new Uint8Array(digest)));
+    return base64Digest.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+  };
+
+  const generateRandomString = (length: number) => {
+    const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
+    let text = '';
+    for (let i = 0; i < length; i++) {
+      text += possible.charAt(Math.floor(Math.random() * possible.length));
+    }
+    return text;
+  };
+
   const handleConnect = async (platform: Platform) => {
     setConnecting(platform);
 
-    // In a real implementation, this would initiate OAuth flow
-    // For now, we'll simulate the OAuth flow
-    const oauthUrls: Record<Platform, string> = {
-      twitter: `https://twitter.com/i/oauth2/authorize?client_id=YOUR_CLIENT_ID&redirect_uri=${encodeURIComponent(
-        process.env.NEXT_PUBLIC_APP_URL + '/api/auth/twitter/callback'
-      )}&scope=tweet.read%20tweet.write%20users.read&state=state&code_challenge=challenge&code_challenge_method=plain`,
+    if (platform === 'twitter') {
+      // Twitter OAuth 2.0 PKCE flow
+      const state = generateRandomString(32);
+      const codeVerifier = generateRandomString(128);
+      const codeChallenge = await generateCodeChallenge(codeVerifier);
+      
+      // Store code verifier and state in cookies for the callback to access
+      // Cookie will be available to the server during the callback
+      document.cookie = `twitter_code_verifier=${codeVerifier}; path=/; max-age=600; SameSite=Lax`;
+      document.cookie = `twitter_state=${state}; path=/; max-age=600; SameSite=Lax`;
+      
+      const params = new URLSearchParams({
+        response_type: 'code',
+        client_id: TWITTER_CLIENT_ID,
+        redirect_uri: `${APP_URL}/api/auth/twitter/callback`,
+        scope: 'tweet.read tweet.write users.read offline.access',
+        state: state,
+        code_challenge: codeChallenge,
+        code_challenge_method: 'S256',
+      });
+      
+      const authUrl = `https://twitter.com/i/oauth2/authorize?${params.toString()}`;
+      window.location.href = authUrl;
+      return;
+    }
+
+    // For other platforms, use the existing flow
+    const oauthUrls: Record<Exclude<Platform, 'twitter'>, string> = {
       facebook: `https://www.facebook.com/v18.0/dialog/oauth?client_id=YOUR_APP_ID&redirect_uri=${encodeURIComponent(
-        process.env.NEXT_PUBLIC_APP_URL + '/api/auth/facebook/callback'
+        APP_URL + '/api/auth/facebook/callback'
       )}&scope=pages_read_engagement,pages_manage_posts,instagram_basic,instagram_content_publish`,
       instagram: `https://www.facebook.com/v18.0/dialog/oauth?client_id=YOUR_APP_ID&redirect_uri=${encodeURIComponent(
-        process.env.NEXT_PUBLIC_APP_URL + '/api/auth/instagram/callback'
+        APP_URL + '/api/auth/instagram/callback'
       )}&scope=instagram_basic,instagram_content_publish`,
       youtube: `https://accounts.google.com/o/oauth2/v2/auth?client_id=YOUR_CLIENT_ID&redirect_uri=${encodeURIComponent(
-        process.env.NEXT_PUBLIC_APP_URL + '/api/auth/youtube/callback'
+        APP_URL + '/api/auth/youtube/callback'
       )}&scope=https://www.googleapis.com/auth/youtube.readonly&response_type=code`,
     };
 
     // Open OAuth popup or redirect
-    window.open(oauthUrls[platform], '_blank', 'width=600,height=700');
+    window.open(oauthUrls[platform as Exclude<Platform, 'twitter'>], '_blank', 'width=600,height=700');
 
     setTimeout(() => setConnecting(null), 1000);
   };
 
+  const [disconnecting, setDisconnecting] = useState<Platform | null>(null);
+
   const handleDisconnect = async (platform: Platform) => {
-    // In a real implementation, this would revoke the token
-    console.log('Disconnect', platform);
+    if (!confirm(`Are you sure you want to disconnect your ${platform} account?`)) {
+      return;
+    }
+    
+    setDisconnecting(platform);
+    
+    try {
+      const response = await fetch('/api/auth/disconnect', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ platform }),
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to disconnect account');
+      }
+      
+      // Refresh the page to update the UI
+      window.location.reload();
+    } catch (error) {
+      console.error('Error disconnecting account:', error);
+      alert(error instanceof Error ? error.message : 'Failed to disconnect account');
+    } finally {
+      setDisconnecting(null);
+    }
   };
 
   return (
@@ -109,7 +186,11 @@ export function AccountConnections({ accounts }: AccountConnectionsProps) {
               key={platform.id}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="p-4 rounded-lg bg-[#18181b] border border-[#27272a]/50 flex items-center gap-4"
+              className={`p-4 rounded-lg border flex items-center gap-4 ${
+                platform.enabled 
+                  ? 'bg-[#18181b] border-[#27272a]/50' 
+                  : 'bg-[#18181b]/50 border-[#27272a]/30 opacity-60'
+              }`}
             >
               <div
                 className={`w-10 h-10 rounded-lg ${platform.bgColor} flex items-center justify-center flex-shrink-0`}
@@ -128,6 +209,11 @@ export function AccountConnections({ accounts }: AccountConnectionsProps) {
                       Connected
                     </span>
                   )}
+                  {!platform.enabled && !isConnected && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#27272a] text-[#71717a]">
+                      Coming Soon
+                    </span>
+                  )}
                 </div>
                 <p className="text-[12px] text-[#71717a] mt-0.5">
                   {isConnected ? (
@@ -144,14 +230,16 @@ export function AccountConnections({ accounts }: AccountConnectionsProps) {
                     ? handleDisconnect(platform.id)
                     : handleConnect(platform.id)
                 }
-                disabled={connecting === platform.id}
+                disabled={connecting === platform.id || disconnecting === platform.id || (!platform.enabled && !isConnected)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[12px] font-medium transition-colors ${
                   isConnected
                     ? 'bg-[#27272a] text-[#a1a1aa] hover:bg-red-500/10 hover:text-red-400'
-                    : 'bg-[#22d3ee]/10 text-[#22d3ee] hover:bg-[#22d3ee]/20'
+                    : platform.enabled
+                    ? 'bg-[#22d3ee]/10 text-[#22d3ee] hover:bg-[#22d3ee]/20'
+                    : 'bg-[#27272a]/50 text-[#71717a] cursor-not-allowed'
                 } disabled:opacity-50 disabled:cursor-not-allowed`}
               >
-                {connecting === platform.id ? (
+                {connecting === platform.id || disconnecting === platform.id ? (
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
                 ) : isConnected ? (
                   <>
@@ -161,7 +249,9 @@ export function AccountConnections({ accounts }: AccountConnectionsProps) {
                 ) : (
                   <>
                     <Link className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">Connect</span>
+                    <span className="hidden sm:inline">
+                      {platform.enabled ? 'Connect' : 'Soon'}
+                    </span>
                   </>
                 )}
               </button>
@@ -170,10 +260,10 @@ export function AccountConnections({ accounts }: AccountConnectionsProps) {
         })}
       </div>
 
-      <div className="p-4 rounded-lg bg-[#fbbf24]/5 border border-[#fbbf24]/20">
-        <p className="text-[12px] text-[#fbbf24]">
-          <strong>Note:</strong> OAuth integration requires setting up developer apps on each platform.
-          This is a demo implementation showing the UI structure.
+      <div className="p-4 rounded-lg bg-[#22d3ee]/5 border border-[#22d3ee]/20">
+        <p className="text-[12px] text-[#22d3ee]">
+          <strong>X (Twitter) is now available!</strong> Connect your X account to start posting. 
+          Facebook, Instagram, and YouTube coming soon.
         </p>
       </div>
     </div>
